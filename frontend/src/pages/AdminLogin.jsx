@@ -21,6 +21,7 @@ function AdminLogin() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setMessage("");
 
     try {
       const response = await axios.post(
@@ -29,9 +30,16 @@ function AdminLogin() {
       );
 
       if (response.data.success) {
+        // Save admin details
         localStorage.setItem(
           "admin",
           JSON.stringify(response.data.admin)
+        );
+
+        // IMPORTANT: Save JWT token
+        localStorage.setItem(
+          "adminToken",
+          response.data.token
         );
 
         setMessage("Admin Login Successful ✅");
@@ -40,7 +48,9 @@ function AdminLogin() {
           navigate("/admin-dashboard");
         }, 500);
       } else {
-        setMessage(response.data.message);
+        setMessage(
+          response.data.message || "Admin login failed"
+        );
       }
     } catch (error) {
       console.log("Admin Login Error:", error);

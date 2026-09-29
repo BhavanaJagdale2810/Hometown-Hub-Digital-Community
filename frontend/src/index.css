@@ -1,79 +1,311 @@
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background-color: #f5f5f5;
-  text-align: center;
+* {
+  box-sizing: border-box;
 }
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f4f8fc;
+  color: #1e293b;
+}
+
+/* ==============================
+   NAVBAR
+   ============================== */
 
 .navbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #4CAF50;
-  padding: 15px 30px;
+  padding: 14px 30px;
+  min-height: 70px;
+  background: #0d6efd;
+  box-shadow: 0 4px 15px rgba(13, 110, 253, 0.25);
 }
 
 .navbar h2 {
-  color: white;
   margin: 0;
+  color: #ffffff;
+  font-size: 25px;
+  font-weight: 700;
 }
 
 .navbar a {
-  color: white;
+  color: #ffffff;
   text-decoration: none;
   margin-left: 20px;
-  font-size: 18px;
-}
-
-h1 {
-  margin-top: 50px;
-}
-
-p {
-  font-size: 18px;
-  color: #555;
-}
-
-button {
-  margin: 10px;
-  padding: 10px 20px;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
   font-size: 16px;
+  font-weight: 600;
+  transition: 0.2s ease;
 }
 
-button:hover {
-  background-color: #45a049;
+.navbar a:hover {
+  color: #dbeafe;
 }
+
+/* ==============================
+   HOME
+   ============================== */
+
 .hero {
- margin: 0;
-  font-family: Arial, sans-serif;
+  min-height: calc(100vh - 70px);
+  padding: 60px 20px;
   text-align: center;
-  background: linear-gradient(to right, #d4fc79, #96e6a1);
-}
-input {
-  width: 280px;
-  padding: 12px;
-  margin: 8px 0;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  font-size: 16px;
+  background: linear-gradient(135deg, #eaf4ff, #ffffff);
 }
 
+.hero h1 {
+  margin: 40px 0 15px;
+  color: #0759b5;
+  font-size: 48px;
+  font-weight: 800;
+}
+
+.hero p {
+  margin: 0 auto 30px;
+  max-width: 650px;
+  color: #64748b;
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+/* ==============================
+   BUTTONS
+   ============================== */
+
 button {
-  padding: 12px 24px;
-  margin-top: 10px;
+  padding: 10px 20px;
   border: none;
   border-radius: 8px;
-  background-color: #2563eb;
-  color: white;
+  background: #0d6efd;
+  color: #ffffff;
+  font-family: Arial, Helvetica, sans-serif;
   font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
+  transition: 0.2s ease;
 }
 
 button:hover {
-  background-color: #1d4ed8;
+  background: #0056b3;
+  box-shadow: 0 5px 14px rgba(13, 110, 253, 0.25);
 }
+
+/* ==============================
+   REGISTER PAGE
+   ============================== */
+
+.register-page {
+  min-height: calc(100vh - 70px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+  background: linear-gradient(135deg, #eaf4ff, #ffffff);
+}
+
+/* ==============================
+   REGISTER BOX
+   ============================== */
+
+.register-box {
+  width: 100%;
+  max-width: 420px;
+  padding: 32px;
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  border-radius: 15px;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.12);
+}
+
+.register-box h1 {
+  margin: 0 0 10px;
+  text-align: center;
+  color: #0759b5;
+  font-size: 30px;
+}
+
+.register-box p {
+  margin: 0 0 25px;
+  text-align: center;
+  color: #64748b;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* ==============================
+   REGISTER FORM
+   ============================== */
+
+.register-box form {
+  width: 100%;
+}
+
+.register-box input {
+  width: 100%;
+  height: 46px;
+  display: block;
+  margin: 14px 0;
+  padding: 10px 13px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1e293b;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 16px;
+}
+
+.register-box input::placeholder {
+  color: #94a3b8;
+}
+
+.register-box input:focus {
+  outline: none;
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.12);
+}
+
+/* ==============================
+   REGISTER BUTTON
+   ============================== */
+
+.register-box button {
+  width: 100%;
+  height: 46px;
+  margin: 10px 0;
+  background: #0d6efd;
+}
+
+.register-box button:hover {
+  background: #0056b3;
+}
+
+/* ==============================
+   LINKS
+   ============================== */
+
+.register-box a {
+  color: #0d6efd;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.register-box a:hover {
+  color: #0056b3;
+  text-decoration: underline;
+}
+
+/* ==============================
+   COMMON CARDS
+   ============================== */
+
+.card,
+.event-card,
+.community-card,
+.post-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 5px 18px rgba(15, 23, 42, 0.07);
+  transition: 0.2s ease;
+}
+
+.card:hover,
+.event-card:hover,
+.community-card:hover,
+.post-card:hover {
+  box-shadow: 0 9px 24px rgba(15, 23, 42, 0.12);
+  transform: translateY(-2px);
+}
+
+/* ==============================
+   INPUTS
+   ============================== */
+
+input,
+textarea,
+select {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: #0d6efd;
+}
+
+/* ==============================
+   TEXTAREA
+   ============================== */
+
+textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1e293b;
+  font-size: 15px;
+  resize: vertical;
+}
+
+/* ==============================
+   RESPONSIVE
+   ============================== */
+
+@media (max-width: 768px) {
+  .navbar {
+    flex-direction: column;
+    gap: 12px;
+    padding: 15px;
+  }
+
+  .navbar h2 {
+    font-size: 22px;
+  }
+
+  .navbar a {
+    margin-left: 7px;
+    margin-right: 7px;
+    font-size: 14px;
+  }
+
+  .hero {
+    padding: 45px 20px;
+  }
+
+  .hero h1 {
+    font-size: 36px;
+  }
+
+  .hero p {
+    font-size: 16px;
+  }
+
+  .register-box {
+    padding: 25px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero h1 {
+    font-size: 30px;
+  }
+
+  .hero p {
+    font-size: 15px;
+  }
+
+  .navbar h2 {
+    font-size: 20px;
+  }
+}
+

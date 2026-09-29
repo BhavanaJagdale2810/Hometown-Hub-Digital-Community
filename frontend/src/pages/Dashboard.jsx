@@ -8,7 +8,6 @@ function Dashboard() {
   const [posts, setPosts] = useState([]);
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState(null);
-
   const [commentText, setCommentText] = useState("");
   const [selectedPost, setSelectedPost] = useState(null);
 
@@ -16,54 +15,70 @@ function Dashboard() {
   const [posting, setPosting] = useState(false);
   const [likingId, setLikingId] = useState(null);
   const [commentingId, setCommentingId] = useState(null);
-
   const [openComments, setOpenComments] = useState({});
+
   const [user, setUser] = useState(null);
 
-  // =========================
-  // Authentication Config
-  // =========================
+  // -----------------------------
+  // AUTH CONFIG
+  // -----------------------------
   const getAuthConfig = () => {
-    const token = localStorage.getItem("token");
+    const token =
+      localStorage.getItem("token") ||
+      localStorage.getItem("authToken") ||
+      localStorage.getItem("userToken");
 
-    if (!token) {
-      return null;
-    }
-
-    return {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    };
+    return token
+      ? {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      : {};
   };
 
-  // =========================
-  // Get Logged In User
-  // =========================
+  // -----------------------------
+  // LOAD USER
+  // -----------------------------
   useEffect(() => {
     try {
-      const savedUser = localStorage.getItem("user");
+      const storedUser = localStorage.getItem("user");
 
-      if (savedUser) {
-        setUser(JSON.parse(savedUser));
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
       }
     } catch (error) {
-      console.log("User data error:", error);
+      console.log("User Load Error:", error);
     }
   }, []);
 
-  // =========================
-  // Fetch Posts
-  // =========================
+  // -----------------------------
+  // FETCH POSTS
+  // -----------------------------
   const fetchPosts = async () => {
     try {
       setLoading(true);
 
-      const res = await axios.get(`${API}/posts`);
+      const res = await axios.get(`${API}/posts`, getAuthConfig());
 
-      setPosts(Array.isArray(res.data) ? res.data : []);
+      console.log("Posts API Response:", res.data);
+
+      let postData = [];
+
+      if (Array.isArray(res.data)) {
+        postData = res.data;
+      } else if (Array.isArray(res.data.posts)) {
+        postData = res.data.posts;
+      } else if (Array.isArray(res.data.data)) {
+        postData = res.data.data;
+      } else if (res.data.success && Array.isArray(res.data.result)) {
+        postData = res.data.result;
+      }
+
+      setPosts(postData);
     } catch (error) {
       console.log("Fetch Posts Error:", error);
+      setPosts([]);
     } finally {
       setLoading(false);
     }
@@ -73,51 +88,112 @@ function Dashboard() {
     fetchPosts();
   }, []);
 
-  // =========================
-  // Create / Update Post
-  // =========================
+  // -----------------------------
+  // CHECK WHETHER POST BELONGS TO CURRENT USER
+  // -----------------------------
+  const isOwnPost = (post) => {
+    if (!user || !post) {
+      return false;
+    }
+
+    const currentUserId = String(user._id || user.id || "");
+
+    const possibleOwnerIds = [
+      post.userId?._id,
+      post.userId?.id,
+      post.userId,
+      post.user?._id,
+      post.user?.id,
+      post.createdBy?._id,
+      post.createdBy?.id,
+      post.createdBy,
+      post.author?._id,
+      post.author?.id,
+      post.author,
+    ]
+      .filter(
+        (value) =>
+          value !== undefined &&
+          value !== null &&
+          value !== ""
+      )
+      .map((value) => String(value));
+
+    if (possibleOwnerIds.includes(currentUserId)) {
+      return true;
+    }
+
+    // Temporary fallback for locally created posts
+    const postUserName = String(
+      post.userName || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const currentUserName = String(
+      user.name || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    if (
+      postUserName &&
+      currentUserName &&
+      postUserName === currentUserName
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
+  // -----------------------------
+  // CREATE / UPDATE POST
+  // -----------------------------
   const handlePost = async () => {
     if (!user) {
-      alert("Please login first!");
+      alert("Please login first.");
       return;
     }
 
-    if (!postText.trim()) {
-      alert("Please write something before posting!");
+    const content = postText.trim();
+
+    if (!content) {
+      alert("Please write something before posting.");
       return;
     }
 
-    const config = getAuthConfig();
-
-    if (!config) {
-      alert("Authentication required. Please login again.");
+    if (content.length > 1000) {
+      alert("Post cannot exceed 1000 characters.");
       return;
     }
 
     try {
       setPosting(true);
 
+      const config = getAuthConfig();
+
       if (editingId) {
         await axios.put(
           `${API}/posts/${editingId}`,
           {
-            content: postText.trim(),
+            content,
           },
           config
         );
 
-        alert("✅ Post updated successfully!");
+        alert("Post updated successfully!");
       } else {
         await axios.post(
           `${API}/posts`,
           {
-            content: postText.trim(),
-            userName: user.name,
+            content,
+            userName: user.name || "User",
           },
           config
         );
 
-        alert("🎉 Post created successfully!");
+        alert("Post created successfully!");
       }
 
       setPostText("");
@@ -127,25 +203,21 @@ function Dashboard() {
     } catch (error) {
       console.log("Post Error:", error);
 
-      if (error.response?.status === 401) {
-        alert("Authentication required. Please login again.");
-      } else {
-        alert(
-          error.response?.data?.message ||
-            "Something went wrong. Please try again."
-        );
-      }
+      alert(
+        error?.response?.data?.message ||
+          "Unable to save post. Please try again."
+      );
     } finally {
       setPosting(false);
     }
   };
 
-  // =========================
-  // Edit Post
-  // =========================
-  const handleEdit = (post) => {
-    setPostText(post.content);
+  // -----------------------------
+  // EDIT POST
+  // -----------------------------
+  const startEdit = (post) => {
     setEditingId(post._id);
+    setPostText(post.content || "");
 
     window.scrollTo({
       top: 0,
@@ -153,1081 +225,668 @@ function Dashboard() {
     });
   };
 
-  // =========================
-  // Cancel Edit
-  // =========================
-  const handleCancelEdit = () => {
+  // -----------------------------
+  // CANCEL EDIT
+  // -----------------------------
+  const cancelEdit = () => {
     setEditingId(null);
     setPostText("");
   };
 
-  // =========================
-  // Delete Post
-  // =========================
-  const handleDelete = async (id) => {
+  // -----------------------------
+  // DELETE POST
+  // -----------------------------
+  const deletePost = async (postId) => {
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this post?"
     );
 
     if (!confirmDelete) return;
 
-    const config = getAuthConfig();
-
-    if (!config) {
-      alert("Authentication required. Please login again.");
-      return;
-    }
-
     try {
-      await axios.delete(`${API}/posts/${id}`, config);
-
-      setPosts((prev) =>
-        prev.filter((post) => post._id !== id)
+      await axios.delete(
+        `${API}/posts/${postId}`,
+        getAuthConfig()
       );
 
-      if (editingId === id) {
-        handleCancelEdit();
-      }
+      alert("Post deleted successfully!");
 
-      alert("🗑️ Post deleted successfully!");
+      await fetchPosts();
     } catch (error) {
       console.log("Delete Post Error:", error);
 
-      if (error.response?.status === 401) {
-        alert("Authentication required. Please login again.");
-      } else {
-        alert(
-          error.response?.data?.message ||
-            "Failed to delete post."
-        );
-      }
+      alert(
+        error?.response?.data?.message ||
+          "Unable to delete post."
+      );
     }
   };
 
-  // =========================
-  // Like / Unlike
-  // =========================
-  const handleLike = async (id) => {
+  // -----------------------------
+  // LIKE / UNLIKE POST
+  // -----------------------------
+  const handleLike = async (postId) => {
     if (!user) {
-      alert("Please login first!");
-      return;
-    }
-
-    const config = getAuthConfig();
-
-    if (!config) {
-      alert("Authentication required. Please login again.");
+      alert("Please login first.");
       return;
     }
 
     try {
-      setLikingId(id);
+      setLikingId(postId);
 
-      const res = await axios.post(
-        `${API}/posts/${id}/like`,
+      await axios.post(
+        `${API}/posts/${postId}/like`,
         {
-          userId: user._id,
+          userId: user._id || user.id,
         },
-        config
+        getAuthConfig()
       );
 
-      setPosts((prevPosts) =>
-        prevPosts.map((post) =>
-          post._id === id
-            ? {
-                ...post,
-                likedBy: res.data.liked
-                  ? [
-                      ...(post.likedBy || []),
-                      user._id,
-                    ]
-                  : (post.likedBy || []).filter(
-                      (likedUser) =>
-                        likedUser.toString() !==
-                        user._id.toString()
-                    ),
-              }
-            : post
-        )
-      );
+      await fetchPosts();
     } catch (error) {
       console.log("Like Error:", error);
 
-      if (error.response?.status === 401) {
-        alert("Authentication required. Please login again.");
-      } else {
-        alert(
-          error.response?.data?.message ||
-            "Failed to update like."
-        );
-      }
+      alert(
+        error?.response?.data?.message ||
+          "Unable to like post."
+      );
     } finally {
       setLikingId(null);
     }
   };
 
-  // =========================
-  // Add Comment
-  // =========================
-  const handleComment = async (id) => {
+  // -----------------------------
+  // ADD COMMENT
+  // -----------------------------
+  const handleComment = async (postId) => {
     if (!user) {
-      alert("Please login first!");
+      alert("Please login first.");
       return;
     }
 
-    if (!commentText.trim()) {
+    const text = commentText.trim();
+
+    if (!text) {
       alert("Please enter a comment.");
       return;
     }
 
-    const config = getAuthConfig();
-
-    if (!config) {
-      alert("Authentication required. Please login again.");
-      return;
-    }
-
     try {
-      setCommentingId(id);
+      setCommentingId(postId);
 
       await axios.post(
-        `${API}/posts/${id}/comment`,
+        `${API}/posts/${postId}/comment`,
         {
-          text: commentText.trim(),
-          userName: user.name,
+          text,
+          userName: user.name || "User",
         },
-        config
+        getAuthConfig()
       );
 
       setCommentText("");
       setSelectedPost(null);
 
-      setOpenComments((prev) => ({
-        ...prev,
-        [id]: true,
-      }));
-
       await fetchPosts();
     } catch (error) {
       console.log("Comment Error:", error);
 
-      if (error.response?.status === 401) {
-        alert("Authentication required. Please login again.");
-      } else {
-        alert(
-          error.response?.data?.message ||
-            "Failed to add comment."
-        );
-      }
+      alert(
+        error?.response?.data?.message ||
+          "Unable to add comment."
+      );
     } finally {
       setCommentingId(null);
     }
   };
 
-  // =========================
-  // Delete Comment
-  // =========================
-  const handleDeleteComment = async (
-    postId,
-    commentId
-  ) => {
+  // -----------------------------
+  // DELETE COMMENT
+  // -----------------------------
+  const deleteComment = async (postId, commentId) => {
     const confirmDelete = window.confirm(
       "Delete this comment?"
     );
 
     if (!confirmDelete) return;
 
-    const config = getAuthConfig();
-
-    if (!config) {
-      alert("Authentication required. Please login again.");
-      return;
-    }
-
     try {
       await axios.delete(
         `${API}/posts/${postId}/comment/${commentId}`,
-        config
+        getAuthConfig()
       );
 
       await fetchPosts();
     } catch (error) {
       console.log("Delete Comment Error:", error);
 
-      if (error.response?.status === 401) {
-        alert("Authentication required. Please login again.");
-      } else {
-        alert(
-          error.response?.data?.message ||
-            "Failed to delete comment."
-        );
-      }
+      alert(
+        error?.response?.data?.message ||
+          "Unable to delete comment."
+      );
     }
   };
 
-  // =========================
-  // Toggle Comments
-  // =========================
-  const toggleComments = (id) => {
+  // -----------------------------
+  // TOGGLE COMMENTS
+  // -----------------------------
+  const toggleComments = (postId) => {
     setOpenComments((prev) => ({
       ...prev,
-      [id]: !prev[id],
+      [postId]: !prev[postId],
     }));
+  };
 
-    if (selectedPost !== id) {
-      setSelectedPost(id);
-      setCommentText("");
+  // -----------------------------
+  // SEARCH
+  // -----------------------------
+  const filteredPosts = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+
+    if (!keyword) {
+      return posts;
+    }
+
+    return posts.filter((post) => {
+      const content = String(
+        post.content || ""
+      ).toLowerCase();
+
+      const userName = String(
+        post.userName || ""
+      ).toLowerCase();
+
+      return (
+        content.includes(keyword) ||
+        userName.includes(keyword)
+      );
+    });
+  }, [posts, search]);
+
+  // -----------------------------
+  // DATE FORMAT
+  // -----------------------------
+  const formatDate = (date) => {
+    if (!date) return "";
+
+    try {
+      return new Date(date).toLocaleString("en-IN", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+    } catch {
+      return "";
     }
   };
 
-  // =========================
-  // Filter Posts
-  // =========================
-  const filteredPosts = useMemo(() => {
-    const keyword = search.toLowerCase().trim();
+  // -----------------------------
+  // GET LIKE COUNT
+  // -----------------------------
+  const getLikeCount = (post) => {
+    if (Array.isArray(post.likedBy)) {
+      return post.likedBy.length;
+    }
 
-    if (!keyword) return posts;
+    if (typeof post.likes === "number") {
+      return post.likes;
+    }
 
-    return posts.filter(
-      (post) =>
-        post.content
-          ?.toLowerCase()
-          .includes(keyword) ||
-        post.userName
-          ?.toLowerCase()
-          .includes(keyword)
-    );
-  }, [posts, search]);
+    if (Array.isArray(post.likes)) {
+      return post.likes.length;
+    }
 
-  // =========================
-  // Check Like
-  // =========================
+    return 0;
+  };
+
+  // -----------------------------
+  // CHECK USER LIKED
+  // -----------------------------
   const isLiked = (post) => {
     if (!user || !Array.isArray(post.likedBy)) {
       return false;
     }
 
-    return post.likedBy.some(
-      (likedUser) =>
-        likedUser.toString() ===
-        user._id?.toString()
+    const currentUserId = String(
+      user._id || user.id
     );
+
+    return post.likedBy.some((item) => {
+      if (typeof item === "string") {
+        return String(item) === currentUserId;
+      }
+
+      if (item?._id) {
+        return String(item._id) === currentUserId;
+      }
+
+      return false;
+    });
   };
 
-  // =========================
-  // Initial Avatar
-  // =========================
-  const getInitial = (name) => {
-    return (
-      name?.trim()?.charAt(0)?.toUpperCase() || "U"
-    );
+  // -----------------------------
+  // GET COMMENTS
+  // -----------------------------
+  const getComments = (post) => {
+    return Array.isArray(post.comments)
+      ? post.comments
+      : [];
   };
 
   return (
-    <>
-      <style>{`
-        * {
-          box-sizing: border-box;
-        }
-
-        body {
-          margin: 0;
-          background: #f4f7fb;
-          font-family: Arial, Helvetica, sans-serif;
-        }
-
-        button,
-        input,
-        textarea {
-          font-family: inherit;
-        }
-
-        .dashboard-page {
-          min-height: 100vh;
-          background:
-            radial-gradient(circle at top left, rgba(13,110,253,0.08), transparent 30%),
-            #f4f7fb;
-          padding-bottom: 50px;
-        }
-
-        .dashboard-container {
-          width: 100%;
-          max-width: 900px;
-          margin: auto;
-          padding: 30px 18px;
-        }
-
-        .hero-card {
-          background: linear-gradient(135deg, #0d6efd, #5b21b6);
-          color: white;
-          border-radius: 24px;
-          padding: 28px;
-          margin-bottom: 22px;
-          box-shadow: 0 12px 35px rgba(13,110,253,0.20);
-        }
-
-        .hero-top {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 15px;
-        }
-
-        .hero-title {
-          margin: 0;
-          font-size: 30px;
-          font-weight: 800;
-        }
-
-        .hero-subtitle {
-          margin: 8px 0 0;
-          opacity: 0.9;
-          font-size: 15px;
-        }
-
-        .online-badge {
-          background: rgba(255,255,255,0.18);
-          border: 1px solid rgba(255,255,255,0.25);
-          padding: 8px 13px;
-          border-radius: 30px;
-          font-size: 13px;
-          white-space: nowrap;
-        }
-
-        .user-card {
-          background: white;
-          border-radius: 18px;
-          padding: 18px;
-          margin-bottom: 20px;
-          display: flex;
-          align-items: center;
-          gap: 15px;
-          box-shadow: 0 5px 20px rgba(0,0,0,0.06);
-        }
-
-        .avatar {
-          width: 52px;
-          height: 52px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #0d6efd, #6f42c1);
-          color: white;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: bold;
-          font-size: 20px;
-          flex-shrink: 0;
-        }
-
-        .user-name {
-          margin: 0;
-          font-size: 17px;
-          font-weight: 700;
-          color: #222;
-        }
-
-        .user-status {
-          margin: 5px 0 0;
-          color: #198754;
-          font-size: 13px;
-        }
-
-        .composer {
-          background: white;
-          border-radius: 20px;
-          padding: 20px;
-          margin-bottom: 20px;
-          box-shadow: 0 5px 20px rgba(0,0,0,0.06);
-          border: 1px solid #e9edf3;
-        }
-
-        .composer-header {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 15px;
-        }
-
-        .composer-header h3 {
-          margin: 0;
-          color: #222;
-          font-size: 19px;
-        }
-
-        .composer textarea {
-          width: 100%;
-          min-height: 110px;
-          resize: vertical;
-          border: 1px solid #dfe4ea;
-          border-radius: 14px;
-          padding: 14px;
-          outline: none;
-          font-size: 15px;
-          transition: 0.2s;
-        }
-
-        .composer textarea:focus {
-          border-color: #0d6efd;
-          box-shadow: 0 0 0 3px rgba(13,110,253,0.10);
-        }
-
-        .composer-footer {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-top: 12px;
-          gap: 10px;
-        }
-
-        .character-count {
-          color: #777;
-          font-size: 13px;
-        }
-
-        .button-group {
-          display: flex;
-          gap: 8px;
-        }
-
-        .primary-btn,
-        .secondary-btn {
-          border: none;
-          border-radius: 10px;
-          padding: 10px 18px;
-          cursor: pointer;
-          font-weight: 700;
-          transition: 0.2s;
-        }
-
-        .primary-btn {
-          background: #0d6efd;
-          color: white;
-        }
-
-        .primary-btn:hover {
-          background: #0b5ed7;
-          transform: translateY(-1px);
-        }
-
-        .secondary-btn {
-          background: #e9ecef;
-          color: #333;
-        }
-
-        .secondary-btn:hover {
-          background: #dfe3e7;
-        }
-
-        .primary-btn:disabled {
-          opacity: 0.65;
-          cursor: not-allowed;
-        }
-
-        .search-box {
-          position: relative;
-          margin-bottom: 22px;
-        }
-
-        .search-box input {
-          width: 100%;
-          border: 1px solid #dfe4ea;
-          border-radius: 14px;
-          padding: 14px 18px 14px 45px;
-          outline: none;
-          background: white;
-          font-size: 15px;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.04);
-        }
-
-        .search-icon {
-          position: absolute;
-          left: 17px;
-          top: 50%;
-          transform: translateY(-50%);
-          color: #777;
-        }
-
-        .feed-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 15px;
-        }
-
-        .feed-header h2 {
-          margin: 0;
-          color: #222;
-          font-size: 22px;
-        }
-
-        .post-count {
-          background: #e7f0ff;
-          color: #0d6efd;
-          padding: 7px 12px;
-          border-radius: 20px;
-          font-size: 13px;
-          font-weight: 700;
-        }
-
-        .post-card {
-          background: white;
-          border-radius: 20px;
-          padding: 20px;
-          margin-bottom: 17px;
-          box-shadow: 0 5px 20px rgba(0,0,0,0.06);
-          border: 1px solid #edf0f4;
-        }
-
-        .post-header {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .small-avatar {
-          width: 43px;
-          height: 43px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #20c997, #0d6efd);
-          color: white;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 800;
-          flex-shrink: 0;
-        }
-
-        .post-user {
-          margin: 0;
-          font-size: 15px;
-          color: #222;
-          font-weight: 700;
-        }
-
-        .post-time {
-          margin-top: 4px;
-          display: block;
-          color: #8a8f98;
-          font-size: 12px;
-        }
-
-        .post-content {
-          color: #333;
-          font-size: 15px;
-          line-height: 1.6;
-          margin: 18px 0;
-          white-space: pre-wrap;
-          word-break: break-word;
-        }
-
-        .post-stats {
-          display: flex;
-          gap: 18px;
-          color: #777;
-          font-size: 13px;
-          padding-bottom: 12px;
-          border-bottom: 1px solid #edf0f4;
-        }
-
-        .post-actions {
-          display: flex;
-          gap: 8px;
-          padding-top: 12px;
-          flex-wrap: wrap;
-        }
-
-        .action-btn {
-          border: none;
-          background: #f5f7fa;
-          color: #444;
-          border-radius: 9px;
-          padding: 9px 13px;
-          cursor: pointer;
-          font-weight: 600;
-          transition: 0.2s;
-        }
-
-        .action-btn:hover {
-          background: #e9eef5;
-        }
-
-        .action-btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        .like-active {
-          background: #ffe9ed;
-          color: #dc3545;
-        }
-
-        .edit-btn {
-          background: #fff3cd;
-          color: #856404;
-        }
-
-        .delete-btn {
-          background: #fde8e8;
-          color: #dc3545;
-        }
-
-        .comment-box {
-          margin-top: 15px;
-          padding: 14px;
-          background: #f7f9fc;
-          border-radius: 14px;
-        }
-
-        .comment-input-row {
-          display: flex;
-          gap: 8px;
-        }
-
-        .comment-input {
-          flex: 1;
-          min-width: 0;
-          border: 1px solid #dfe4ea;
-          border-radius: 10px;
-          padding: 10px 12px;
-          outline: none;
-        }
-
-        .comment-input:focus {
-          border-color: #0d6efd;
-        }
-
-        .comment-submit {
-          border: none;
-          background: #198754;
-          color: white;
-          border-radius: 10px;
-          padding: 10px 14px;
-          cursor: pointer;
-          font-weight: 700;
-        }
-
-        .comment-submit:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        .comment {
-          margin-top: 12px;
-          padding: 12px;
-          background: white;
-          border-radius: 11px;
-          border: 1px solid #e8ebef;
-        }
-
-        .comment-user {
-          font-weight: 700;
-          font-size: 13px;
-          color: #333;
-        }
-
-        .comment-text {
-          margin: 6px 0;
-          color: #444;
-          font-size: 14px;
-          line-height: 1.5;
-        }
-
-        .comment-time {
-          color: #999;
-          font-size: 11px;
-        }
-
-        .comment-delete {
-          margin-top: 7px;
-          border: none;
-          background: transparent;
-          color: #dc3545;
-          cursor: pointer;
-          padding: 0;
-          font-size: 12px;
-          font-weight: 600;
-        }
-
-        .empty-state {
-          background: white;
-          padding: 45px 20px;
-          border-radius: 20px;
-          text-align: center;
-          box-shadow: 0 5px 20px rgba(0,0,0,0.05);
-        }
-
-        .empty-icon {
-          font-size: 45px;
-          margin-bottom: 10px;
-        }
-
-        .empty-state h3 {
-          margin: 5px 0;
-          color: #333;
-        }
-
-        .empty-state p {
-          color: #777;
-          margin: 8px 0 0;
-        }
-
-        .loading {
-          background: white;
-          border-radius: 20px;
-          padding: 40px;
-          text-align: center;
-          color: #777;
-        }
-
-        .footer {
-          text-align: center;
-          color: #8a8f98;
-          font-size: 13px;
-          margin-top: 35px;
-        }
-
-        @media (max-width: 600px) {
-          .dashboard-container {
-            padding: 18px 12px;
+    <div style={styles.page}>
+      {/* HEADER */}
+      <header style={styles.header}>
+        <div>
+          <h1 style={styles.logo}>
+            🏡 Hometown Hub
+          </h1>
+
+          <p style={styles.tagline}>
+            Your Digital Community Platform
+          </p>
+        </div>
+
+        <div style={styles.online}>
+          <span style={styles.onlineDot}></span>
+          Online
+        </div>
+      </header>
+
+      {/* WELCOME */}
+      <section style={styles.welcomeCard}>
+        <div style={styles.avatar}>
+          {user?.name
+            ? user.name.charAt(0).toUpperCase()
+            : "U"}
+        </div>
+
+        <div>
+          <h2 style={styles.welcomeTitle}>
+            👋 Welcome back,{" "}
+            {user?.name || "User"}!
+          </h2>
+
+          <p style={styles.activeMember}>
+            ● Active member
+          </p>
+        </div>
+      </section>
+
+      {/* CREATE / EDIT POST */}
+      <section style={styles.createCard}>
+        <h2 style={styles.sectionTitle}>
+          {editingId
+            ? "✏️ Edit your post"
+            : "📝 Create a post"}
+        </h2>
+
+        <p style={styles.sectionSubtitle}>
+          Share something with your community
+        </p>
+
+        <textarea
+          value={postText}
+          onChange={(e) =>
+            setPostText(e.target.value)
           }
+          placeholder="What's happening in your hometown?"
+          maxLength={1000}
+          style={styles.textarea}
+        />
 
-          .hero-card {
-            padding: 20px;
-            border-radius: 18px;
+        <div style={styles.postBottom}>
+          <span style={styles.counter}>
+            {postText.length}/1000 characters
+          </span>
+
+          <div style={styles.buttonGroup}>
+            {editingId && (
+              <button
+                onClick={cancelEdit}
+                style={styles.cancelButton}
+              >
+                Cancel
+              </button>
+            )}
+
+            <button
+              onClick={handlePost}
+              disabled={posting}
+              style={{
+                ...styles.postButton,
+                opacity: posting ? 0.7 : 1,
+              }}
+            >
+              {posting
+                ? "Please wait..."
+                : editingId
+                ? "Update Post"
+                : "Post"}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* SEARCH */}
+      <section style={styles.searchCard}>
+        <span style={styles.searchIcon}>
+          🔍
+        </span>
+
+        <input
+          type="text"
+          placeholder="Search posts or users..."
+          value={search}
+          onChange={(e) =>
+            setSearch(e.target.value)
           }
+          style={styles.searchInput}
+        />
+      </section>
 
-          .hero-top {
-            align-items: flex-start;
-          }
+      {/* FEED */}
+      <section style={styles.feedSection}>
+        <div style={styles.feedHeader}>
+          <div>
+            <h2 style={styles.feedTitle}>
+              Community Feed
+            </h2>
 
-          .hero-title {
-            font-size: 24px;
-          }
-
-          .online-badge {
-            font-size: 11px;
-            padding: 6px 9px;
-          }
-
-          .composer,
-          .post-card {
-            padding: 15px;
-          }
-
-          .composer-footer {
-            align-items: flex-start;
-            flex-direction: column;
-          }
-
-          .button-group {
-            width: 100%;
-          }
-
-          .button-group button {
-            flex: 1;
-          }
-
-          .comment-input-row {
-            flex-direction: column;
-          }
-
-          .comment-submit {
-            width: 100%;
-          }
-
-          .feed-header h2 {
-            font-size: 19px;
-          }
-
-          .post-actions {
-            gap: 6px;
-          }
-
-          .action-btn {
-            padding: 8px 10px;
-            font-size: 12px;
-          }
-        }
-      `}</style>
-
-      <div className="dashboard-page">
-        <div className="dashboard-container">
-
-          {/* HERO */}
-          <div className="hero-card">
-            <div className="hero-top">
-              <div>
-                <h1 className="hero-title">
-                  🏡 Hometown Hub
-                </h1>
-
-                <p className="hero-subtitle">
-                  Your Digital Community Platform
-                </p>
-              </div>
-
-              <div className="online-badge">
-                🟢 Online
-              </div>
-            </div>
+            <p style={styles.postCount}>
+              {filteredPosts.length}{" "}
+              {filteredPosts.length === 1
+                ? "Post"
+                : "Posts"}
+            </p>
           </div>
 
-          {/* USER CARD */}
-          {user && (
-            <div className="user-card">
-              <div className="avatar">
-                {getInitial(user.name)}
-              </div>
+          <button
+            onClick={fetchPosts}
+            style={styles.refreshButton}
+          >
+            🔄 Refresh
+          </button>
+        </div>
 
-              <div>
-                <h3 className="user-name">
-                  👋 Welcome back, {user.name}!
-                </h3>
-
-                <p className="user-status">
-                  ● Active member
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* CREATE POST */}
-          <div className="composer">
-            <div className="composer-header">
-              <div className="small-avatar">
-                {getInitial(user?.name)}
-              </div>
-
-              <h3>
-                {editingId
-                  ? "✏️ Edit your post"
-                  : "📝 Create a post"}
-              </h3>
+        {loading ? (
+          <div style={styles.emptyCard}>
+            <div style={styles.loader}>
+              ⏳
             </div>
 
-            <textarea
-              placeholder="Share something with your hometown community..."
-              value={postText}
-              maxLength={1000}
-              onChange={(e) =>
-                setPostText(e.target.value)
-              }
-            />
+            <h3>Loading posts...</h3>
 
-            <div className="composer-footer">
-              <span className="character-count">
-                {postText.length} / 1000 characters
-              </span>
-
-              <div className="button-group">
-                {editingId && (
-                  <button
-                    className="secondary-btn"
-                    onClick={handleCancelEdit}
-                    disabled={posting}
-                  >
-                    Cancel
-                  </button>
-                )}
-
-                <button
-                  className="primary-btn"
-                  onClick={handlePost}
-                  disabled={posting}
-                >
-                  {posting
-                    ? "Please wait..."
-                    : editingId
-                    ? "💾 Update Post"
-                    : "🚀 Post"}
-                </button>
-              </div>
-            </div>
+            <p>Please wait.</p>
           </div>
-
-          {/* SEARCH */}
-          <div className="search-box">
-            <span className="search-icon">
-              🔍
-            </span>
-
-            <input
-              type="text"
-              placeholder="Search posts or users..."
-              value={search}
-              onChange={(e) =>
-                setSearch(e.target.value)
-              }
-            />
-          </div>
-
-          {/* FEED HEADER */}
-          <div className="feed-header">
-            <h2>🌍 Community Feed</h2>
-
-            <span className="post-count">
-              {filteredPosts.length} Posts
-            </span>
-          </div>
-
-          {/* LOADING / POSTS */}
-          {loading ? (
-            <div className="loading">
-              ⏳ Loading community posts...
+        ) : filteredPosts.length === 0 ? (
+          <div style={styles.emptyCard}>
+            <div style={styles.emptyIcon}>
+              📭
             </div>
-          ) : filteredPosts.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-icon">
-                🌱
-              </div>
 
-              <h3>No posts found</h3>
+            <h3>
+              {search
+                ? "No posts found"
+                : "No posts yet."}
+            </h3>
 
-              <p>
-                {search
-                  ? "Try a different search."
-                  : "Be the first person to share something!"}
-              </p>
-            </div>
-          ) : (
-            filteredPosts.map((post) => {
+            <p>
+              {search
+                ? "Try another search."
+                : "Be the first one to create a post!"}
+            </p>
+          </div>
+        ) : (
+          <div style={styles.postsList}>
+            {filteredPosts.map((post) => {
+              const comments =
+                getComments(post);
+
               const liked = isLiked(post);
 
               return (
-                <div
-                  className="post-card"
+                <article
                   key={post._id}
+                  style={styles.postCard}
                 >
-
                   {/* POST HEADER */}
-                  <div className="post-header">
-                    <div className="small-avatar">
-                      {getInitial(post.userName)}
+                  <div style={styles.postHeader}>
+                    <div style={styles.userInfo}>
+                      <div
+                        style={
+                          styles.smallAvatar
+                        }
+                      >
+                        {post.userName
+                          ? post.userName
+                              .charAt(0)
+                              .toUpperCase()
+                          : "U"}
+                      </div>
+
+                      <div>
+                        <strong
+                          style={
+                            styles.userName
+                          }
+                        >
+                          {post.userName ||
+                            "User"}
+                        </strong>
+
+                        <div
+                          style={
+                            styles.postDate
+                          }
+                        >
+                          {formatDate(
+                            post.createdAt ||
+                              post.updatedAt
+                          )}
+                        </div>
+                      </div>
                     </div>
 
-                    <div>
-                      <p className="post-user">
-                        {post.userName ||
-                          "Unknown User"}
-                      </p>
+                    {/* EDIT / DELETE */}
+                    {isOwnPost(post) && (
+                      <div
+                        style={
+                          styles.actionGroup
+                        }
+                      >
+                        <button
+                          onClick={() =>
+                            startEdit(post)
+                          }
+                          style={
+                            styles.iconButton
+                          }
+                          title="Edit Post"
+                        >
+                          ✏️
+                        </button>
 
-                      <span className="post-time">
-                        🕒{" "}
-                        {post.createdAt
-                          ? new Date(
-                              post.createdAt
-                            ).toLocaleString()
-                          : "Recently"}
-                      </span>
-                    </div>
+                        <button
+                          onClick={() =>
+                            deletePost(
+                              post._id
+                            )
+                          }
+                          style={
+                            styles.iconButton
+                          }
+                          title="Delete Post"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    )}
                   </div>
 
-                  {/* POST CONTENT */}
-                  <div className="post-content">
+                  {/* CONTENT */}
+                  <div
+                    style={styles.postContent}
+                  >
                     {post.content}
                   </div>
 
-                  {/* STATS */}
-                  <div className="post-stats">
-                    <span>
-                      {liked ? "❤️" : "♡"}{" "}
-                      {post.likedBy?.length || 0} likes
-                    </span>
-
-                    <span>
-                      💬{" "}
-                      {post.comments?.length || 0} comments
-                    </span>
-                  </div>
-
-                  {/* ACTIONS */}
-                  <div className="post-actions">
-
-                    {/* LIKE */}
+                  {/* LIKE / COMMENT */}
+                  <div
+                    style={styles.postActions}
+                  >
                     <button
-                      className={`action-btn ${
-                        liked ? "like-active" : ""
-                      }`}
                       onClick={() =>
-                        handleLike(post._id)
+                        handleLike(
+                          post._id
+                        )
                       }
                       disabled={
-                        likingId === post._id
+                        likingId ===
+                        post._id
                       }
+                      style={{
+                        ...styles.likeButton,
+                        color: liked
+                          ? "#e11d48"
+                          : "#555",
+                      }}
                     >
-                      {likingId === post._id
-                        ? "..."
-                        : liked
-                        ? "❤️ Liked"
-                        : "🤍 Like"}
+                      {liked
+                        ? "❤️"
+                        : "🤍"}{" "}
+                      {getLikeCount(post)}
                     </button>
 
-                    {/* COMMENT */}
                     <button
-                      className="action-btn"
-                      onClick={() =>
-                        toggleComments(post._id)
+                      onClick={() => {
+                        toggleComments(
+                          post._id
+                        );
+                        setSelectedPost(
+                          post._id
+                        );
+                      }}
+                      style={
+                        styles.commentButton
                       }
                     >
-                      💬 Comment
+                      💬 {comments.length}
                     </button>
-
-                    {/* OWNER ACTIONS */}
-                    {user &&
-                      post.userName === user.name && (
-                        <>
-                          <button
-                            className="action-btn edit-btn"
-                            onClick={() =>
-                              handleEdit(post)
-                            }
-                          >
-                            ✏️ Edit
-                          </button>
-
-                          <button
-                            className="action-btn delete-btn"
-                            onClick={() =>
-                              handleDelete(post._id)
-                            }
-                          >
-                            🗑️ Delete
-                          </button>
-                        </>
-                      )}
                   </div>
 
                   {/* COMMENTS */}
-                  {openComments[post._id] && (
-                    <div className="comment-box">
+                  {openComments[
+                    post._id
+                  ] && (
+                    <div
+                      style={
+                        styles.commentsSection
+                      }
+                    >
+                      {comments.length > 0 ? (
+                        comments.map(
+                          (
+                            comment,
+                            index
+                          ) => (
+                            <div
+                              key={
+                                comment._id ||
+                                index
+                              }
+                              style={
+                                styles.comment
+                              }
+                            >
+                              <div
+                                style={
+                                  styles.commentAvatar
+                                }
+                              >
+                                {(
+                                  comment.userName ||
+                                  "U"
+                                )
+                                  .charAt(
+                                    0
+                                  )
+                                  .toUpperCase()}
+                              </div>
 
-                      <div className="comment-input-row">
+                              <div
+                                style={
+                                  styles.commentBody
+                                }
+                              >
+                                <strong>
+                                  {comment.userName ||
+                                    "User"}
+                                </strong>
+
+                                <p>
+                                  {
+                                    comment.text
+                                  }
+                                </p>
+
+                                {comment._id && (
+                                  <button
+                                    onClick={() =>
+                                      deleteComment(
+                                        post._id,
+                                        comment._id
+                                      )
+                                    }
+                                    style={
+                                      styles.deleteComment
+                                    }
+                                  >
+                                    Delete
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        )
+                      ) : (
+                        <p
+                          style={
+                            styles.noComments
+                          }
+                        >
+                          No comments yet.
+                        </p>
+                      )}
+
+                      {/* ADD COMMENT */}
+                      <div
+                        style={
+                          styles.commentInputRow
+                        }
+                      >
                         <input
-                          className="comment-input"
                           type="text"
                           placeholder="Write a comment..."
                           value={
-                            selectedPost === post._id
+                            selectedPost ===
+                            post._id
                               ? commentText
                               : ""
                           }
                           onChange={(e) => {
-                            setSelectedPost(post._id);
+                            setSelectedPost(
+                              post._id
+                            );
+
                             setCommentText(
                               e.target.value
                             );
                           }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              handleComment(
-                                post._id
-                              );
-                            }
-                          }}
+                          style={
+                            styles.commentInput
+                          }
                         />
 
                         <button
-                          className="comment-submit"
                           onClick={() =>
                             handleComment(
                               post._id
@@ -1237,100 +896,439 @@ function Dashboard() {
                             commentingId ===
                             post._id
                           }
+                          style={
+                            styles.commentSend
+                          }
                         >
-                          {commentingId === post._id
+                          {commentingId ===
+                          post._id
                             ? "..."
-                            : "Add"}
+                            : "Send"}
                         </button>
                       </div>
-
-                      {/* COMMENT LIST */}
-                      {post.comments &&
-                      post.comments.length > 0 ? (
-                        <div>
-                          <h4
-                            style={{
-                              margin:
-                                "16px 0 8px",
-                              color: "#333",
-                            }}
-                          >
-                            💬 Comments (
-                            {post.comments.length})
-                          </h4>
-
-                          {post.comments.map(
-                            (comment) => (
-                              <div
-                                className="comment"
-                                key={comment._id}
-                              >
-                                <div className="comment-user">
-                                  👤{" "}
-                                  {comment.userName ||
-                                    "Unknown User"}
-                                </div>
-
-                                <div className="comment-text">
-                                  {comment.text}
-                                </div>
-
-                                <div className="comment-time">
-                                  {comment.createdAt
-                                    ? new Date(
-                                        comment.createdAt
-                                      ).toLocaleString()
-                                    : ""}
-                                </div>
-
-                                {/* DELETE OWN COMMENT */}
-                                {user &&
-                                  comment.userName ===
-                                    user.name && (
-                                    <button
-                                      className="comment-delete"
-                                      onClick={() =>
-                                        handleDeleteComment(
-                                          post._id,
-                                          comment._id
-                                        )
-                                      }
-                                    >
-                                      🗑️ Delete comment
-                                    </button>
-                                  )}
-                              </div>
-                            )
-                          )}
-                        </div>
-                      ) : (
-                        <p
-                          style={{
-                            color: "#888",
-                            fontSize: "13px",
-                            margin: "14px 0 0",
-                          }}
-                        >
-                          No comments yet. Be the
-                          first to comment! 💬
-                        </p>
-                      )}
                     </div>
                   )}
-                </div>
+                </article>
               );
-            })
-          )}
-
-          {/* FOOTER */}
-          <div className="footer">
-            🏡 Hometown Hub • Connect • Share • Grow
+            })}
           </div>
-
-        </div>
-      </div>
-    </>
+        )}
+      </section>
+    </div>
   );
 }
+
+// ======================================================
+// STYLES
+// ======================================================
+
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background: "#f5f7fb",
+    paddingBottom: "50px",
+    fontFamily:
+      "Arial, Helvetica, sans-serif",
+    color: "#1f2937",
+  },
+
+  header: {
+    background: "#ffffff",
+    padding: "20px 6%",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderBottom:
+      "1px solid #e5e7eb",
+    position: "sticky",
+    top: 0,
+    zIndex: 10,
+  },
+
+  logo: {
+    margin: 0,
+    fontSize: "25px",
+    color: "#1d4ed8",
+  },
+
+  tagline: {
+    margin: "4px 0 0",
+    color: "#6b7280",
+    fontSize: "14px",
+  },
+
+  online: {
+    display: "flex",
+    alignItems: "center",
+    gap: "7px",
+    color: "#15803d",
+    fontWeight: "600",
+    fontSize: "14px",
+  },
+
+  onlineDot: {
+    width: "9px",
+    height: "9px",
+    borderRadius: "50%",
+    background: "#22c55e",
+    display: "inline-block",
+  },
+
+  welcomeCard: {
+    width: "88%",
+    maxWidth: "1100px",
+    margin: "28px auto 18px",
+    background: "#ffffff",
+    borderRadius: "16px",
+    padding: "22px",
+    display: "flex",
+    alignItems: "center",
+    gap: "15px",
+    boxShadow:
+      "0 4px 18px rgba(0,0,0,0.06)",
+  },
+
+  avatar: {
+    width: "58px",
+    height: "58px",
+    borderRadius: "50%",
+    background: "#2563eb",
+    color: "#ffffff",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    fontSize: "23px",
+    fontWeight: "bold",
+  },
+
+  welcomeTitle: {
+    margin: 0,
+    fontSize: "22px",
+  },
+
+  activeMember: {
+    margin: "6px 0 0",
+    color: "#16a34a",
+    fontSize: "14px",
+    fontWeight: "600",
+  },
+
+  createCard: {
+    width: "88%",
+    maxWidth: "1100px",
+    margin: "0 auto 18px",
+    background: "#ffffff",
+    borderRadius: "16px",
+    padding: "24px",
+    boxShadow:
+      "0 4px 18px rgba(0,0,0,0.06)",
+  },
+
+  sectionTitle: {
+    margin: 0,
+    fontSize: "20px",
+  },
+
+  sectionSubtitle: {
+    color: "#6b7280",
+    margin: "6px 0 15px",
+  },
+
+  textarea: {
+    width: "100%",
+    minHeight: "120px",
+    boxSizing: "border-box",
+    border:
+      "1px solid #d1d5db",
+    borderRadius: "12px",
+    padding: "14px",
+    resize: "vertical",
+    outline: "none",
+    fontSize: "15px",
+    fontFamily: "inherit",
+  },
+
+  postBottom: {
+    marginTop: "10px",
+    display: "flex",
+    justifyContent:
+      "space-between",
+    alignItems: "center",
+    gap: "10px",
+  },
+
+  counter: {
+    color: "#6b7280",
+    fontSize: "13px",
+  },
+
+  buttonGroup: {
+    display: "flex",
+    gap: "10px",
+  },
+
+  postButton: {
+    border: "none",
+    background: "#2563eb",
+    color: "#ffffff",
+    padding: "10px 22px",
+    borderRadius: "9px",
+    cursor: "pointer",
+    fontWeight: "600",
+  },
+
+  cancelButton: {
+    border:
+      "1px solid #d1d5db",
+    background: "#ffffff",
+    color: "#374151",
+    padding: "10px 18px",
+    borderRadius: "9px",
+    cursor: "pointer",
+  },
+
+  searchCard: {
+    width: "88%",
+    maxWidth: "1100px",
+    margin: "0 auto 22px",
+    background: "#ffffff",
+    borderRadius: "12px",
+    padding: "12px 16px",
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    boxSizing: "border-box",
+    boxShadow:
+      "0 3px 12px rgba(0,0,0,0.05)",
+  },
+
+  searchIcon: {
+    fontSize: "18px",
+  },
+
+  searchInput: {
+    border: "none",
+    outline: "none",
+    width: "100%",
+    fontSize: "15px",
+  },
+
+  feedSection: {
+    width: "88%",
+    maxWidth: "1100px",
+    margin: "0 auto",
+  },
+
+  feedHeader: {
+    display: "flex",
+    justifyContent:
+      "space-between",
+    alignItems: "center",
+    marginBottom: "15px",
+  },
+
+  feedTitle: {
+    margin: 0,
+    fontSize: "22px",
+  },
+
+  postCount: {
+    margin: "4px 0 0",
+    color: "#6b7280",
+    fontSize: "14px",
+  },
+
+  refreshButton: {
+    border:
+      "1px solid #d1d5db",
+    background: "#ffffff",
+    padding: "9px 15px",
+    borderRadius: "8px",
+    cursor: "pointer",
+  },
+
+  emptyCard: {
+    background: "#ffffff",
+    borderRadius: "16px",
+    padding: "50px 20px",
+    textAlign: "center",
+    boxShadow:
+      "0 4px 18px rgba(0,0,0,0.05)",
+  },
+
+  emptyIcon: {
+    fontSize: "45px",
+  },
+
+  loader: {
+    fontSize: "35px",
+  },
+
+  postsList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "16px",
+  },
+
+  postCard: {
+    background: "#ffffff",
+    borderRadius: "16px",
+    padding: "20px",
+    boxShadow:
+      "0 4px 18px rgba(0,0,0,0.06)",
+  },
+
+  postHeader: {
+    display: "flex",
+    justifyContent:
+      "space-between",
+    alignItems: "center",
+  },
+
+  userInfo: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+  },
+
+  smallAvatar: {
+    width: "42px",
+    height: "42px",
+    borderRadius: "50%",
+    background: "#dbeafe",
+    color: "#1d4ed8",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: "bold",
+  },
+
+  userName: {
+    display: "block",
+    fontSize: "15px",
+  },
+
+  postDate: {
+    marginTop: "3px",
+    color: "#9ca3af",
+    fontSize: "12px",
+  },
+
+  actionGroup: {
+    display: "flex",
+    gap: "5px",
+  },
+
+  iconButton: {
+    border: "none",
+    background: "#f3f4f6",
+    borderRadius: "7px",
+    padding: "7px",
+    cursor: "pointer",
+    fontSize: "15px",
+  },
+
+  postContent: {
+    marginTop: "18px",
+    fontSize: "16px",
+    lineHeight: "1.6",
+    whiteSpace: "pre-wrap",
+  },
+
+  postActions: {
+    display: "flex",
+    gap: "18px",
+    borderTop:
+      "1px solid #f0f0f0",
+    marginTop: "18px",
+    paddingTop: "12px",
+  },
+
+  likeButton: {
+    border: "none",
+    background: "transparent",
+    cursor: "pointer",
+    fontSize: "14px",
+  },
+
+  commentButton: {
+    border: "none",
+    background: "transparent",
+    cursor: "pointer",
+    color: "#555",
+    fontSize: "14px",
+  },
+
+  commentsSection: {
+    marginTop: "14px",
+    paddingTop: "14px",
+    borderTop:
+      "1px solid #eeeeee",
+  },
+
+  comment: {
+    display: "flex",
+    gap: "10px",
+    marginBottom: "12px",
+  },
+
+  commentAvatar: {
+    width: "32px",
+    height: "32px",
+    minWidth: "32px",
+    borderRadius: "50%",
+    background: "#ede9fe",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "12px",
+    fontWeight: "bold",
+  },
+
+  commentBody: {
+    background: "#f8fafc",
+    padding: "8px 12px",
+    borderRadius: "10px",
+    flex: 1,
+  },
+
+  noComments: {
+    color: "#9ca3af",
+    fontSize: "14px",
+  },
+
+  deleteComment: {
+    border: "none",
+    background: "transparent",
+    color: "#dc2626",
+    cursor: "pointer",
+    fontSize: "12px",
+    padding: 0,
+  },
+
+  commentInputRow: {
+    display: "flex",
+    gap: "8px",
+    marginTop: "12px",
+  },
+
+  commentInput: {
+    flex: 1,
+    border:
+      "1px solid #d1d5db",
+    borderRadius: "8px",
+    padding: "9px 12px",
+    outline: "none",
+  },
+
+  commentSend: {
+    border: "none",
+    background: "#2563eb",
+    color: "#ffffff",
+    borderRadius: "8px",
+    padding: "9px 16px",
+    cursor: "pointer",
+  },
+};
 
 export default Dashboard;

@@ -10,7 +10,6 @@ function Communities() {
 
   const [communities, setCommunities] = useState([]);
   const [notifications, setNotifications] = useState([]);
-
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState(null);
 
@@ -20,9 +19,21 @@ function Communities() {
     location: "",
   });
 
-  // ======================
-  // Fetch Communities
-  // ======================
+  const getAuthConfig = () => {
+    const token =
+      localStorage.getItem("token") ||
+      localStorage.getItem("authToken") ||
+      localStorage.getItem("userToken");
+
+    return token
+      ? {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      : {};
+  };
+
   const fetchCommunities = async () => {
     try {
       const response = await axios.get(
@@ -30,16 +41,16 @@ function Communities() {
       );
 
       if (response.data.success) {
-        setCommunities(response.data.communities);
+        setCommunities(response.data.communities || []);
       }
     } catch (error) {
-      console.log("Fetch Communities Error:", error);
+      console.log(
+        "Fetch Communities Error:",
+        error?.response?.data || error
+      );
     }
   };
 
-  // ======================
-  // Fetch Notifications
-  // ======================
   const fetchNotifications = async () => {
     try {
       if (
@@ -56,12 +67,14 @@ function Communities() {
       );
 
       if (response.data.success) {
-        setNotifications(response.data.notifications);
+        setNotifications(
+          response.data.notifications || []
+        );
       }
     } catch (error) {
       console.log(
-        "Fetch Community Notifications Error:",
-        error
+        "Fetch Notifications Error:",
+        error?.response?.data || error
       );
     }
   };
@@ -71,9 +84,6 @@ function Communities() {
     fetchNotifications();
   }, []);
 
-  // ======================
-  // Handle Input
-  // ======================
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -81,31 +91,30 @@ function Communities() {
     });
   };
 
-  // ======================
-  // Create / Update
-  // ======================
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
+      const config = getAuthConfig();
+
       if (editingId) {
         const response = await axios.put(
           `http://localhost:5000/api/communities/${editingId}`,
-          formData
+          formData,
+          config
         );
 
         if (response.data.success) {
           alert("Community Updated Successfully ✏️");
 
           setEditingId(null);
-
           setFormData({
             name: "",
             description: "",
             location: "",
           });
 
-          fetchCommunities();
+          await fetchCommunities();
         }
       } else {
         const response = await axios.post(
@@ -113,7 +122,8 @@ function Communities() {
           {
             ...formData,
             createdBy: currentUserName,
-          }
+          },
+          config
         );
 
         if (response.data.success) {
@@ -125,32 +135,29 @@ function Communities() {
             location: "",
           });
 
-          fetchCommunities();
-          fetchNotifications();
+          await fetchCommunities();
+          await fetchNotifications();
         }
       }
     } catch (error) {
       console.log(
         "Save Community Error:",
-        error
+        error?.response?.data || error
       );
 
       alert(
-        error.response?.data?.message ||
+        error?.response?.data?.message ||
           "Failed to save community"
       );
     }
   };
 
-  // ======================
-  // Edit Community
-  // ======================
   const handleEdit = (community) => {
     setEditingId(community._id);
 
     setFormData({
-      name: community.name,
-      description: community.description,
+      name: community.name || "",
+      description: community.description || "",
       location: community.location || "",
     });
 
@@ -160,9 +167,6 @@ function Communities() {
     });
   };
 
-  // ======================
-  // Cancel Edit
-  // ======================
   const cancelEdit = () => {
     setEditingId(null);
 
@@ -173,9 +177,6 @@ function Communities() {
     });
   };
 
-  // ======================
-  // Delete Community
-  // ======================
   const handleDelete = async (id) => {
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this community?"
@@ -187,101 +188,119 @@ function Communities() {
 
     try {
       const response = await axios.delete(
-        `http://localhost:5000/api/communities/${id}`
+        `http://localhost:5000/api/communities/${id}`,
+        getAuthConfig()
       );
 
       if (response.data.success) {
         alert("Community Deleted Successfully 🗑️");
-        fetchCommunities();
+        await fetchCommunities();
       }
     } catch (error) {
       console.log(
         "Delete Community Error:",
-        error
+        error?.response?.data || error
       );
 
-      alert("Failed to delete community");
+      alert(
+        error?.response?.data?.message ||
+          "Failed to delete community"
+      );
     }
   };
 
-  // ======================
-  // Join / Leave
-  // ======================
   const handleJoin = async (id) => {
     try {
+      const token =
+        localStorage.getItem("token") ||
+        localStorage.getItem("authToken") ||
+        localStorage.getItem("userToken");
+
+      if (!token) {
+        alert(
+          "Authentication token not found. Please login again."
+        );
+        return;
+      }
+
       const response = await axios.post(
         `http://localhost:5000/api/communities/${id}/join`,
         {
           userName: currentUserName,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
 
       if (response.data.success) {
-        alert(response.data.message);
+        alert(
+          response.data.message ||
+            "Joined Community Successfully 🎉"
+        );
 
-        fetchCommunities();
-        fetchNotifications();
+        await fetchCommunities();
+        await fetchNotifications();
+      } else {
+        alert(
+          response.data.message ||
+            "Failed to join community"
+        );
       }
     } catch (error) {
       console.log(
         "Join Community Error:",
-        error
+        error?.response?.data || error
       );
 
       alert(
-        error.response?.data?.message ||
+        error?.response?.data?.message ||
           "Failed to join community"
       );
     }
   };
 
-  // ======================
-  // Mark Notification Read
-  // ======================
   const markNotificationRead = async (id) => {
     try {
       await axios.put(
-        `http://localhost:5000/api/notifications/${id}/read`
+        `http://localhost:5000/api/notifications/${id}/read`,
+        {},
+        getAuthConfig()
       );
 
-      fetchNotifications();
+      await fetchNotifications();
     } catch (error) {
       console.log(
         "Notification Read Error:",
-        error
+        error?.response?.data || error
       );
     }
   };
 
-  // ======================
-  // Search Communities
-  // ======================
-  const filteredCommunities =
-    communities.filter((community) => {
+  const filteredCommunities = communities.filter(
+    (community) => {
       const searchText = search.toLowerCase();
 
       return (
-        community.name
+        (community.name || "")
           .toLowerCase()
           .includes(searchText) ||
-        community.description
+        (community.description || "")
           .toLowerCase()
           .includes(searchText) ||
-        community.location
+        (community.location || "")
           .toLowerCase()
           .includes(searchText)
       );
-    });
+    }
+  );
 
-  // ======================
-  // Check Membership
-  // ======================
   const isMember = (community) => {
     return (
       Array.isArray(community.members) &&
-      community.members.includes(
-        currentUserName
-      )
+      community.members.includes(currentUserName)
     );
   };
 
@@ -293,27 +312,19 @@ function Communities() {
         padding: "20px",
       }}
     >
-      {/* ======================
-          Page Heading
-      ====================== */}
       <h1>👥 Community Hub</h1>
 
       <p>
-        Discover, create and join communities
-        around you.
+        Discover, create and join communities around you.
       </p>
 
-      {/* ======================
-          Notifications
-      ====================== */}
       <div
         style={{
           background: "#fff7ed",
           padding: "20px",
           borderRadius: "12px",
           marginBottom: "25px",
-          boxShadow:
-            "0 2px 10px rgba(0,0,0,0.08)",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
         }}
       >
         <h2>
@@ -329,25 +340,21 @@ function Communities() {
         {notifications.length === 0 ? (
           <p>No notifications.</p>
         ) : (
-          notifications
-            .slice(0, 5)
-            .map((notification) => (
+          notifications.slice(0, 5).map(
+            (notification) => (
               <div
                 key={notification._id}
                 style={{
                   padding: "10px",
                   marginBottom: "8px",
-                  background:
-                    notification.isRead
-                      ? "#f5f5f5"
-                      : "#ffffff",
+                  background: notification.isRead
+                    ? "#f5f5f5"
+                    : "#ffffff",
                   borderRadius: "8px",
                   border: "1px solid #eee",
                 }}
               >
-                <p>
-                  {notification.message}
-                </p>
+                <p>{notification.message}</p>
 
                 {!notification.isRead && (
                   <button
@@ -369,20 +376,17 @@ function Communities() {
                   </button>
                 )}
               </div>
-            ))
+            )
+          )
         )}
       </div>
 
-      {/* ======================
-          Create / Edit Form
-      ====================== */}
       <div
         style={{
           background: "white",
           padding: "25px",
           borderRadius: "12px",
-          boxShadow:
-            "0 4px 15px rgba(0,0,0,0.1)",
+          boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
           marginBottom: "30px",
         }}
       >
@@ -473,16 +477,11 @@ function Communities() {
         </form>
       </div>
 
-      {/* ======================
-          Search
-      ====================== */}
       <input
         type="text"
         placeholder="🔍 Search communities..."
         value={search}
-        onChange={(e) =>
-          setSearch(e.target.value)
-        }
+        onChange={(e) => setSearch(e.target.value)}
         style={{
           width: "100%",
           padding: "14px",
@@ -494,151 +493,120 @@ function Communities() {
         }}
       />
 
-      {/* ======================
-          Community List
-      ====================== */}
       <h2>👥 All Communities</h2>
 
       {filteredCommunities.length === 0 ? (
         <p>No communities found.</p>
       ) : (
-        filteredCommunities.map(
-          (community) => (
-            <div
-              key={community._id}
-              style={{
-                background: "white",
-                padding: "20px",
-                borderRadius: "12px",
-                boxShadow:
-                  "0 2px 10px rgba(0,0,0,0.1)",
-                marginBottom: "15px",
-              }}
-            >
-              <h3>
-                👥 {community.name}
-              </h3>
+        filteredCommunities.map((community) => (
+          <div
+            key={community._id}
+            style={{
+              background: "white",
+              padding: "20px",
+              borderRadius: "12px",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+              marginBottom: "15px",
+            }}
+          >
+            <h3>👥 {community.name}</h3>
 
+            <p>{community.description}</p>
+
+            {community.location && (
               <p>
-                {community.description}
+                📍 <strong>Location:</strong>{" "}
+                {community.location}
               </p>
+            )}
 
-              {community.location && (
-                <p>
-                  📍{" "}
-                  <strong>
-                    Location:
-                  </strong>{" "}
-                  {community.location}
-                </p>
-              )}
+            <p>
+              👤 <strong>Created by:</strong>{" "}
+              {community.createdBy}
+            </p>
 
-              <p>
-                👤{" "}
-                <strong>
-                  Created by:
-                </strong>{" "}
-                {community.createdBy}
-              </p>
+            <p>
+              👥 <strong>
+                {community.members?.length || 0}
+              </strong>{" "}
+              members
+            </p>
 
-              <p>
-                👥{" "}
-                <strong>
-                  {community.members?.length ||
-                    0}
-                </strong>{" "}
-                members
-              </p>
-
-              <p>
-                📅{" "}
-                <strong>
-                  Created:
-                </strong>{" "}
-                {new Date(
-                  community.createdAt
-                ).toLocaleDateString(
-                  "en-IN",
-                  {
+            <p>
+              📅 <strong>Created:</strong>{" "}
+              {community.createdAt
+                ? new Date(
+                    community.createdAt
+                  ).toLocaleDateString("en-IN", {
                     day: "2-digit",
                     month: "long",
                     year: "numeric",
-                  }
-                )}
-              </p>
+                  })
+                : "N/A"}
+            </p>
 
-              {/* ======================
-                  Action Buttons
-              ====================== */}
-              <div
+            <div
+              style={{
+                display: "flex",
+                gap: "10px",
+                flexWrap: "wrap",
+                marginTop: "15px",
+              }}
+            >
+              <button
+                onClick={() =>
+                  handleJoin(community._id)
+                }
                 style={{
-                  display: "flex",
-                  gap: "10px",
-                  flexWrap: "wrap",
-                  marginTop: "15px",
+                  background: isMember(community)
+                    ? "#16a34a"
+                    : "#2563eb",
+                  color: "white",
+                  border: "none",
+                  padding: "10px 16px",
+                  borderRadius: "6px",
+                  cursor: "pointer",
                 }}
               >
-                <button
-                  onClick={() =>
-                    handleJoin(
-                      community._id
-                    )
-                  }
-                  style={{
-                    background: isMember(
-                      community
-                    )
-                      ? "#16a34a"
-                      : "#2563eb",
-                    color: "white",
-                    border: "none",
-                    padding: "10px 16px",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                  }}
-                >
-                  {isMember(community)
-                    ? "✅ Joined"
-                    : "👥 Join Community"}
-                </button>
+                {isMember(community)
+                  ? "✅ Joined"
+                  : "👥 Join Community"}
+              </button>
 
-                <button
-                  onClick={() =>
-                    handleEdit(community)
-                  }
-                  style={{
-                    background: "#f59e0b",
-                    color: "white",
-                    border: "none",
-                    padding: "10px 16px",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                  }}
-                >
-                  ✏️ Edit
-                </button>
+              <button
+                onClick={() =>
+                  handleEdit(community)
+                }
+                style={{
+                  background: "#f59e0b",
+                  color: "white",
+                  border: "none",
+                  padding: "10px 16px",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                }}
+              >
+                ✏️ Edit
+              </button>
 
-                <button
-                  onClick={() =>
-                    handleDelete(
-                      community._id
-                    )
-                  }
-                  style={{
-                    background: "#dc2626",
-                    color: "white",
-                    border: "none",
-                    padding: "10px 16px",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                  }}
-                >
-                  🗑️ Delete
-                </button>
-              </div>
+              <button
+                onClick={() =>
+                  handleDelete(community._id)
+                }
+                style={{
+                  background: "#dc2626",
+                  color: "white",
+                  border: "none",
+                  padding: "10px 16px",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                }}
+              >
+                🗑️ Delete
+              </button>
             </div>
-          )
-        )
+          </div>
+        ))
       )}
     </div>
   );

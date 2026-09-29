@@ -2,22 +2,13 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 
 function Events() {
-  // ==============================
-  // API URL
-  // ==============================
   const API_URL = "http://localhost:5000/api";
 
-  // ==============================
-  // Get Logged-in User
-  // ==============================
   const storedUser =
     JSON.parse(localStorage.getItem("user")) || {};
 
   const currentUserName = storedUser.name || "Unknown User";
 
-  // ==============================
-  // Get JWT Token
-  // ==============================
   const getToken = () => {
     return (
       localStorage.getItem("token") ||
@@ -26,9 +17,6 @@ function Events() {
     );
   };
 
-  // ==============================
-  // Axios Config
-  // ==============================
   const getAuthConfig = () => {
     const token = getToken();
 
@@ -40,9 +28,6 @@ function Events() {
     };
   };
 
-  // ==============================
-  // States
-  // ==============================
   const [events, setEvents] = useState([]);
   const [notifications, setNotifications] = useState([]);
 
@@ -60,7 +45,7 @@ function Events() {
   });
 
   // ==============================
-  // Get All Events
+  // GET ALL EVENTS
   // ==============================
   const fetchEvents = async () => {
     try {
@@ -77,38 +62,44 @@ function Events() {
   };
 
   // ==============================
-  // Get Notifications
+  // GET NOTIFICATIONS
   // ==============================
   const fetchNotifications = async () => {
     try {
-      if (
-        !currentUserName ||
-        currentUserName === "Unknown User"
-      ) {
+      const token = getToken();
+
+      if (!token) {
+        console.log("No token found for notifications");
         return;
       }
 
       const response = await axios.get(
         `${API_URL}/notifications/${encodeURIComponent(
           currentUserName
-        )}`
+        )}`,
+        getAuthConfig()
       );
 
       if (response.data.success) {
         setNotifications(
           response.data.notifications || []
         );
+
+        console.log(
+          "Notifications fetched:",
+          response.data.notifications
+        );
       }
     } catch (error) {
       console.log(
         "Fetch Notifications Error:",
-        error
+        error.response?.data || error.message
       );
     }
   };
 
   // ==============================
-  // Load Data
+  // LOAD DATA
   // ==============================
   useEffect(() => {
     fetchEvents();
@@ -116,7 +107,7 @@ function Events() {
   }, []);
 
   // ==============================
-  // Handle Input Change
+  // HANDLE INPUT
   // ==============================
   const handleChange = (e) => {
     setFormData((previousData) => ({
@@ -126,14 +117,13 @@ function Events() {
   };
 
   // ==============================
-  // Create / Update Event
+  // CREATE / UPDATE EVENT
   // ==============================
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const token = getToken();
 
-    // Token check
     if (!token) {
       alert(
         "Your login session is missing. Please logout and login again."
@@ -141,7 +131,6 @@ function Events() {
       return;
     }
 
-    // Basic validation
     if (
       !formData.title.trim() ||
       !formData.description.trim() ||
@@ -157,9 +146,6 @@ function Events() {
 
       const config = getAuthConfig();
 
-      // ==============================
-      // UPDATE EVENT
-      // ==============================
       if (editingId) {
         const response = await axios.put(
           `${API_URL}/events/${editingId}`,
@@ -187,12 +173,7 @@ function Events() {
           await fetchEvents();
           await fetchNotifications();
         }
-      }
-
-      // ==============================
-      // CREATE EVENT
-      // ==============================
-      else {
+      } else {
         const response = await axios.post(
           `${API_URL}/events`,
           {
@@ -221,11 +202,6 @@ function Events() {
     } catch (error) {
       console.log("Save Event Error:", error);
 
-      console.log(
-        "Backend Error:",
-        error.response?.data
-      );
-
       if (error.response?.status === 401) {
         alert(
           "Session expired. Please logout and login again."
@@ -242,7 +218,7 @@ function Events() {
   };
 
   // ==============================
-  // Edit Event
+  // EDIT EVENT
   // ==============================
   const handleEdit = (event) => {
     setEditingId(event._id);
@@ -265,7 +241,7 @@ function Events() {
   };
 
   // ==============================
-  // Cancel Edit
+  // CANCEL EDIT
   // ==============================
   const cancelEdit = () => {
     setEditingId(null);
@@ -279,7 +255,7 @@ function Events() {
   };
 
   // ==============================
-  // Delete Event
+  // DELETE EVENT
   // ==============================
   const handleDelete = async (id) => {
     const confirmDelete = window.confirm(
@@ -312,10 +288,7 @@ function Events() {
         await fetchNotifications();
       }
     } catch (error) {
-      console.log(
-        "Delete Event Error:",
-        error
-      );
+      console.log("Delete Event Error:", error);
 
       if (error.response?.status === 401) {
         alert(
@@ -331,7 +304,7 @@ function Events() {
   };
 
   // ==============================
-  // Join / Leave Event
+  // JOIN / LEAVE EVENT
   // ==============================
   const handleJoinEvent = async (id) => {
     const token = getToken();
@@ -360,10 +333,7 @@ function Events() {
         await fetchNotifications();
       }
     } catch (error) {
-      console.log(
-        "Join Event Error:",
-        error
-      );
+      console.log("Join Event Error:", error);
 
       if (error.response?.status === 401) {
         alert(
@@ -379,26 +349,26 @@ function Events() {
   };
 
   // ==============================
-  // Mark Notification Read
+  // MARK NOTIFICATION AS READ
   // ==============================
   const markNotificationRead = async (id) => {
     try {
       const token = getToken();
 
       if (!token) {
-        alert(
-          "Please login again."
-        );
+        alert("Please login again.");
         return;
       }
 
-      await axios.put(
+      const response = await axios.put(
         `${API_URL}/notifications/${id}/read`,
         {},
         getAuthConfig()
       );
 
-      await fetchNotifications();
+      if (response.data.success) {
+        await fetchNotifications();
+      }
     } catch (error) {
       console.log(
         "Notification Read Error:",
@@ -408,7 +378,7 @@ function Events() {
   };
 
   // ==============================
-  // Search Events
+  // SEARCH EVENTS
   // ==============================
   const filteredEvents = events.filter(
     (event) => {
@@ -430,7 +400,7 @@ function Events() {
   );
 
   // ==============================
-  // Date-wise Events
+  // DATE-WISE EVENTS
   // ==============================
   const today = new Date();
 
@@ -451,7 +421,7 @@ function Events() {
     : upcomingEvents;
 
   // ==============================
-  // Check Joined
+  // CHECK JOINED
   // ==============================
   const isJoined = (event) => {
     return (
@@ -473,9 +443,6 @@ function Events() {
         padding: "20px",
       }}
     >
-      {/* =========================
-          PAGE TITLE
-      ========================= */}
       <h1>📅 Community Events</h1>
 
       {/* =========================
@@ -512,7 +479,7 @@ function Events() {
               <div
                 key={notification._id}
                 style={{
-                  padding: "10px",
+                  padding: "12px",
                   marginBottom: "8px",
                   background:
                     notification.isRead
@@ -525,33 +492,50 @@ function Events() {
               >
                 <p
                   style={{
-                    margin:
-                      "0 0 6px 0",
+                    margin: "0 0 6px 0",
                   }}
                 >
-                  {notification.message}
+                  🔔 {notification.message}
                 </p>
 
-                {!notification.isRead && (
-                  <button
-                    onClick={() =>
-                      markNotificationRead(
-                        notification._id
+                <small
+                  style={{
+                    color: "#777",
+                  }}
+                >
+                  {notification.createdAt
+                    ? new Date(
+                        notification.createdAt
+                      ).toLocaleString(
+                        "en-IN"
                       )
-                    }
-                    style={{
-                      border: "none",
-                      background:
-                        "#2563eb",
-                      color: "white",
-                      padding:
-                        "6px 10px",
-                      borderRadius: "5px",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Mark as Read
-                  </button>
+                    : ""}
+                </small>
+
+                {!notification.isRead && (
+                  <div>
+                    <button
+                      onClick={() =>
+                        markNotificationRead(
+                          notification._id
+                        )
+                      }
+                      style={{
+                        border: "none",
+                        background:
+                          "#2563eb",
+                        color: "white",
+                        padding:
+                          "6px 10px",
+                        borderRadius:
+                          "5px",
+                        cursor: "pointer",
+                        marginTop: "8px",
+                      }}
+                    >
+                      Mark as Read
+                    </button>
+                  </div>
                 )}
               </div>
             ))
@@ -578,7 +562,6 @@ function Events() {
         </h2>
 
         <form onSubmit={handleSubmit}>
-          {/* TITLE */}
           <input
             type="text"
             name="title"
@@ -594,7 +577,6 @@ function Events() {
             }}
           />
 
-          {/* DESCRIPTION */}
           <textarea
             name="description"
             placeholder="Event Description"
@@ -610,7 +592,6 @@ function Events() {
             }}
           />
 
-          {/* DATE */}
           <input
             type="datetime-local"
             name="date"
@@ -625,7 +606,6 @@ function Events() {
             }}
           />
 
-          {/* LOCATION */}
           <input
             type="text"
             name="location"
@@ -641,7 +621,6 @@ function Events() {
             }}
           />
 
-          {/* SUBMIT */}
           <button
             type="submit"
             disabled={loading}
@@ -666,7 +645,6 @@ function Events() {
               : "➕ Create Event"}
           </button>
 
-          {/* CANCEL */}
           {editingId && (
             <button
               type="button"
@@ -791,64 +769,41 @@ function Events() {
               marginBottom: "15px",
             }}
           >
-            {/* EVENT TITLE */}
-            <h3>
-              🎉 {event.title}
-            </h3>
+            <h3>🎉 {event.title}</h3>
 
-            {/* DESCRIPTION */}
-            <p>
-              {event.description}
-            </p>
+            <p>{event.description}</p>
 
-            {/* DATE */}
             <p>
-              <strong>
-                📅 Date:
-              </strong>{" "}
+              <strong>📅 Date:</strong>{" "}
               {new Date(
                 event.date
-              ).toLocaleString(
-                "en-IN",
-                {
-                  day: "2-digit",
-                  month: "long",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }
-              )}
+              ).toLocaleString("en-IN", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </p>
 
-            {/* LOCATION */}
             <p>
-              <strong>
-                📍 Location:
-              </strong>{" "}
+              <strong>📍 Location:</strong>{" "}
               {event.location}
             </p>
 
-            {/* CREATED BY */}
             <p>
-              <strong>
-                👤 Created by:
-              </strong>{" "}
+              <strong>👤 Created by:</strong>{" "}
               {event.userName}
             </p>
 
-            {/* JOINED COUNT */}
             <p>
               👥{" "}
               <strong>
-                {event.joinedUsers?.length ||
-                  0}
+                {event.joinedUsers?.length || 0}
               </strong>{" "}
               people joined
             </p>
 
-            {/* =====================
-                ACTION BUTTONS
-            ===================== */}
             <div
               style={{
                 display: "flex",
@@ -857,23 +812,17 @@ function Events() {
                 marginTop: "15px",
               }}
             >
-              {/* JOIN / LEAVE */}
               <button
                 onClick={() =>
-                  handleJoinEvent(
-                    event._id
-                  )
+                  handleJoinEvent(event._id)
                 }
                 style={{
-                  background: isJoined(
-                    event
-                  )
+                  background: isJoined(event)
                     ? "#16a34a"
                     : "#2563eb",
                   color: "white",
                   border: "none",
-                  padding:
-                    "10px 16px",
+                  padding: "10px 16px",
                   borderRadius: "6px",
                   cursor: "pointer",
                 }}
@@ -883,7 +832,6 @@ function Events() {
                   : "👥 Join Event"}
               </button>
 
-              {/* EDIT */}
               <button
                 onClick={() =>
                   handleEdit(event)
@@ -892,8 +840,7 @@ function Events() {
                   background: "#f59e0b",
                   color: "white",
                   border: "none",
-                  padding:
-                    "10px 16px",
+                  padding: "10px 16px",
                   borderRadius: "6px",
                   cursor: "pointer",
                 }}
@@ -901,19 +848,15 @@ function Events() {
                 ✏️ Edit
               </button>
 
-              {/* DELETE */}
               <button
                 onClick={() =>
-                  handleDelete(
-                    event._id
-                  )
+                  handleDelete(event._id)
                 }
                 style={{
                   background: "#dc2626",
                   color: "white",
                   border: "none",
-                  padding:
-                    "10px 16px",
+                  padding: "10px 16px",
                   borderRadius: "6px",
                   cursor: "pointer",
                 }}

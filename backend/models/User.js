@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
+    // User Name
     name: {
       type: String,
       required: [true, "Name is required"],
@@ -10,6 +11,7 @@ const userSchema = new mongoose.Schema(
       maxlength: [50, "Name cannot exceed 50 characters"],
     },
 
+    // User Email
     email: {
       type: String,
       required: [true, "Email is required"],
@@ -22,12 +24,14 @@ const userSchema = new mongoose.Schema(
       ],
     },
 
+    // User Password
     password: {
       type: String,
       required: [true, "Password is required"],
       minlength: [6, "Password must be at least 6 characters"],
     },
 
+    // Mobile Number
     mobile: {
       type: String,
       default: "",
@@ -35,6 +39,7 @@ const userSchema = new mongoose.Schema(
       maxlength: [15, "Mobile number cannot exceed 15 characters"],
     },
 
+    // Address
     address: {
       type: String,
       default: "",
@@ -42,17 +47,32 @@ const userSchema = new mongoose.Schema(
       maxlength: [200, "Address cannot exceed 200 characters"],
     },
 
+    // Profile Photo
     profilePhoto: {
       type: String,
       default: "",
       trim: true,
     },
 
+    // Block / Unblock User
     isBlocked: {
       type: Boolean,
       default: false,
     },
 
+    // Forgot Password OTP
+    resetOTP: {
+      type: String,
+      default: null,
+    },
+
+    // OTP Expiry Time
+    resetOTPExpiry: {
+      type: Date,
+      default: null,
+    },
+
+    // Account Creation Date
     createdAt: {
       type: Date,
       default: Date.now,

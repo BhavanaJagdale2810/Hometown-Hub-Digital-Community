@@ -1,60 +1,94 @@
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
+
 function Register() {
   const [name, setName] = useState("");
-const [email, setEmail] = useState("");
-const [password, setPassword] = useState("");
-const handleRegister = async () => {
-  try {
-    const response = await axios.post(
-      "http://localhost:5000/api/users/",
-      {
-        id: Date.now(),
-        name: name,
-        email: email,
-        password: password,
-      }
-    );
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-    alert(response.data.message);
-  } catch (error) {
-  console.log(error.response);
-  console.log(error.message);
-  console.log(error);
-  alert("Registration Failed");
-}
-};
+  const navigate = useNavigate();
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+
+    if (!name || !email || !password) {
+      alert("Please fill all fields");
+      return;
+    }
+
+    if (password.length < 6) {
+      alert("Password must be at least 6 characters");
+      return;
+    }
+
+    try {
+      const response = await axios.post(
+        "http://localhost:5000/api/users/",
+        {
+          id: Date.now(),
+          name: name,
+          email: email,
+          password: password,
+        }
+      );
+
+      alert(response.data.message || "Registration successful!");
+
+      setName("");
+      setEmail("");
+      setPassword("");
+
+      navigate("/login");
+    } catch (error) {
+      console.error("Registration Error:", error);
+
+      alert(
+        error.response?.data?.message ||
+          "Registration failed. Please try again."
+      );
+    }
+  };
+
   return (
-    <div className="hero">
-      <h1>Register</h1>
+    <div className="register-page">
+      <div className="register-box">
+        <h1>Create Account</h1>
 
-      <input
-  type="text"
-  placeholder="Enter Full Name"
-  value={name}
-  onChange={(e) => setName(e.target.value)}
-/>
-      <br /><br />
+        <p>Join Hometown Hub</p>
 
-      <input
-  type="email"
-  placeholder="Enter Email"
-  value={email}
-  onChange={(e) => setEmail(e.target.value)}
-/>
-      <br /><br />
+        <form onSubmit={handleRegister}>
+          <input
+            type="text"
+            placeholder="Enter Full Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
 
-      <input
-  type="password"
-  placeholder="Create Password"
-  value={password}
-  onChange={(e) => setPassword(e.target.value)}
-/>
-      <br /><br />
-      <button onClick={handleRegister}>
-  Register
-</button>
+          <input
+            type="email"
+            placeholder="Enter Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
 
+          <input
+            type="password"
+            placeholder="Create Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+
+          <button type="submit">
+            Register
+          </button>
+        </form>
+
+        <p>
+          Already have an account?{" "}
+          <Link to="/login">Login</Link>
+        </p>
+      </div>
     </div>
   );
 }

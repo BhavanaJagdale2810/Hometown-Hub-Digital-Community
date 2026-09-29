@@ -82,9 +82,30 @@ function Login() {
         style={{
           width: "90%",
           padding: "10px",
-          marginBottom: "20px",
+          marginBottom: "10px",
         }}
       />
+
+      <div
+        style={{
+          textAlign: "right",
+          marginBottom: "20px",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => navigate("/forgot-password")}
+          style={{
+            background: "none",
+            border: "none",
+            color: "#007bff",
+            cursor: "pointer",
+            fontSize: "14px",
+          }}
+        >
+          Forgot Password?
+        </button>
+      </div>
 
       <button
         onClick={handleLogin}

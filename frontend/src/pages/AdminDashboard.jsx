@@ -22,12 +22,32 @@ function AdminDashboard() {
   const [selectedUser, setSelectedUser] = useState(null);
 
   // ======================
+  // Admin Authentication Config
+  // ======================
+  const getAdminConfig = () => {
+    const adminToken = localStorage.getItem("adminToken");
+
+    if (!adminToken) {
+      return null;
+    }
+
+    return {
+      headers: {
+        Authorization: `Bearer ${adminToken}`,
+      },
+    };
+  };
+
+  // ======================
   // Check Admin Login
   // ======================
   useEffect(() => {
     const admin = localStorage.getItem("admin");
+    const adminToken = localStorage.getItem("adminToken");
 
-    if (!admin) {
+    if (!admin || !adminToken) {
+      localStorage.removeItem("admin");
+      localStorage.removeItem("adminToken");
       navigate("/admin-login");
       return;
     }
@@ -40,6 +60,15 @@ function AdminDashboard() {
   // ======================
   const fetchAllData = async () => {
     try {
+      const config = getAdminConfig();
+
+      if (!config) {
+        localStorage.removeItem("admin");
+        localStorage.removeItem("adminToken");
+        navigate("/admin-login");
+        return;
+      }
+
       const [
         statsResponse,
         usersResponse,
@@ -47,11 +76,26 @@ function AdminDashboard() {
         eventsResponse,
         postsResponse,
       ] = await Promise.all([
-        axios.get("http://localhost:5000/api/admin/stats"),
-        axios.get("http://localhost:5000/api/admin/users"),
-        axios.get("http://localhost:5000/api/admin/communities"),
-        axios.get("http://localhost:5000/api/admin/events"),
-        axios.get("http://localhost:5000/api/admin/posts"),
+        axios.get(
+          "http://localhost:5000/api/admin/stats",
+          config
+        ),
+        axios.get(
+          "http://localhost:5000/api/admin/users",
+          config
+        ),
+        axios.get(
+          "http://localhost:5000/api/admin/communities",
+          config
+        ),
+        axios.get(
+          "http://localhost:5000/api/admin/events",
+          config
+        ),
+        axios.get(
+          "http://localhost:5000/api/admin/posts",
+          config
+        ),
       ]);
 
       if (statsResponse.data.success) {
@@ -63,7 +107,9 @@ function AdminDashboard() {
       }
 
       if (communitiesResponse.data.success) {
-        setCommunities(communitiesResponse.data.communities);
+        setCommunities(
+          communitiesResponse.data.communities
+        );
       }
 
       if (eventsResponse.data.success) {
@@ -75,6 +121,18 @@ function AdminDashboard() {
       }
     } catch (error) {
       console.log("Admin Data Error:", error);
+
+      // If token is invalid/expired
+      if (error.response?.status === 401) {
+        localStorage.removeItem("admin");
+        localStorage.removeItem("adminToken");
+
+        alert(
+          "Admin session expired. Please login again."
+        );
+
+        navigate("/admin-login");
+      }
     }
   };
 
@@ -118,8 +176,16 @@ function AdminDashboard() {
   // ======================
   const viewUser = async (id) => {
     try {
+      const config = getAdminConfig();
+
+      if (!config) {
+        navigate("/admin-login");
+        return;
+      }
+
       const response = await axios.get(
-        `http://localhost:5000/api/admin/users/${id}`
+        `http://localhost:5000/api/admin/users/${id}`,
+        config
       );
 
       if (response.data.success) {
@@ -127,6 +193,14 @@ function AdminDashboard() {
       }
     } catch (error) {
       console.log("View User Error:", error);
+
+      if (error.response?.status === 401) {
+        localStorage.removeItem("admin");
+        localStorage.removeItem("adminToken");
+        navigate("/admin-login");
+        return;
+      }
+
       alert("Failed to load user details");
     }
   };
@@ -136,8 +210,17 @@ function AdminDashboard() {
   // ======================
   const toggleBlockUser = async (id) => {
     try {
+      const config = getAdminConfig();
+
+      if (!config) {
+        navigate("/admin-login");
+        return;
+      }
+
       const response = await axios.put(
-        `http://localhost:5000/api/admin/users/${id}/block`
+        `http://localhost:5000/api/admin/users/${id}/block`,
+        {},
+        config
       );
 
       if (response.data.success) {
@@ -146,6 +229,14 @@ function AdminDashboard() {
       }
     } catch (error) {
       console.log("Block User Error:", error);
+
+      if (error.response?.status === 401) {
+        localStorage.removeItem("admin");
+        localStorage.removeItem("adminToken");
+        navigate("/admin-login");
+        return;
+      }
+
       alert("Failed to update user status");
     }
   };
@@ -159,8 +250,16 @@ function AdminDashboard() {
     }
 
     try {
+      const config = getAdminConfig();
+
+      if (!config) {
+        navigate("/admin-login");
+        return;
+      }
+
       const response = await axios.delete(
-        `http://localhost:5000/api/admin/users/${id}`
+        `http://localhost:5000/api/admin/users/${id}`,
+        config
       );
 
       if (response.data.success) {
@@ -169,7 +268,15 @@ function AdminDashboard() {
         fetchAllData();
       }
     } catch (error) {
-      console.log(error);
+      console.log("Delete User Error:", error);
+
+      if (error.response?.status === 401) {
+        localStorage.removeItem("admin");
+        localStorage.removeItem("adminToken");
+        navigate("/admin-login");
+        return;
+      }
+
       alert("Failed to delete user");
     }
   };
@@ -183,8 +290,16 @@ function AdminDashboard() {
     }
 
     try {
+      const config = getAdminConfig();
+
+      if (!config) {
+        navigate("/admin-login");
+        return;
+      }
+
       const response = await axios.delete(
-        `http://localhost:5000/api/admin/communities/${id}`
+        `http://localhost:5000/api/admin/communities/${id}`,
+        config
       );
 
       if (response.data.success) {
@@ -192,7 +307,15 @@ function AdminDashboard() {
         fetchAllData();
       }
     } catch (error) {
-      console.log(error);
+      console.log("Delete Community Error:", error);
+
+      if (error.response?.status === 401) {
+        localStorage.removeItem("admin");
+        localStorage.removeItem("adminToken");
+        navigate("/admin-login");
+        return;
+      }
+
       alert("Failed to delete community");
     }
   };
@@ -206,8 +329,16 @@ function AdminDashboard() {
     }
 
     try {
+      const config = getAdminConfig();
+
+      if (!config) {
+        navigate("/admin-login");
+        return;
+      }
+
       const response = await axios.delete(
-        `http://localhost:5000/api/admin/events/${id}`
+        `http://localhost:5000/api/admin/events/${id}`,
+        config
       );
 
       if (response.data.success) {
@@ -215,7 +346,15 @@ function AdminDashboard() {
         fetchAllData();
       }
     } catch (error) {
-      console.log(error);
+      console.log("Delete Event Error:", error);
+
+      if (error.response?.status === 401) {
+        localStorage.removeItem("admin");
+        localStorage.removeItem("adminToken");
+        navigate("/admin-login");
+        return;
+      }
+
       alert("Failed to delete event");
     }
   };
@@ -229,8 +368,16 @@ function AdminDashboard() {
     }
 
     try {
+      const config = getAdminConfig();
+
+      if (!config) {
+        navigate("/admin-login");
+        return;
+      }
+
       const response = await axios.delete(
-        `http://localhost:5000/api/admin/posts/${id}`
+        `http://localhost:5000/api/admin/posts/${id}`,
+        config
       );
 
       if (response.data.success) {
@@ -238,7 +385,15 @@ function AdminDashboard() {
         fetchAllData();
       }
     } catch (error) {
-      console.log(error);
+      console.log("Delete Post Error:", error);
+
+      if (error.response?.status === 401) {
+        localStorage.removeItem("admin");
+        localStorage.removeItem("adminToken");
+        navigate("/admin-login");
+        return;
+      }
+
       alert("Failed to delete post");
     }
   };
