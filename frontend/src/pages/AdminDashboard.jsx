@@ -1,4 +1,5 @@
 import AdminNavbar from "../AdminNavbar";
+import API from "../api";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -77,23 +78,23 @@ function AdminDashboard() {
         postsResponse,
       ] = await Promise.all([
         axios.get(
-          "http://localhost:5000/api/admin/stats",
+          `${API}/admin/stats`,
           config
         ),
         axios.get(
-          "http://localhost:5000/api/admin/users",
+          `${API}/admin/users`,
           config
         ),
         axios.get(
-          "http://localhost:5000/api/admin/communities",
+         `${API}/admin/communities`,
           config
         ),
         axios.get(
-          "http://localhost:5000/api/admin/events",
+         `${API}/admin/events`,
           config
         ),
         axios.get(
-          "http://localhost:5000/api/admin/posts",
+          `${API}/admin/posts`,
           config
         ),
       ]);
@@ -184,7 +185,7 @@ function AdminDashboard() {
       }
 
       const response = await axios.get(
-        `http://localhost:5000/api/admin/users/${id}`,
+       `${API}/admin/users/${id}`,
         config
       );
 
@@ -218,7 +219,7 @@ function AdminDashboard() {
       }
 
       const response = await axios.put(
-        `http://localhost:5000/api/admin/users/${id}/block`,
+        `${API}/admin/users/${id}/block`,
         {},
         config
       );
@@ -258,7 +259,7 @@ function AdminDashboard() {
       }
 
       const response = await axios.delete(
-        `http://localhost:5000/api/admin/users/${id}`,
+        `${API}/admin/users/${id}`,
         config
       );
 
@@ -298,7 +299,7 @@ function AdminDashboard() {
       }
 
       const response = await axios.delete(
-        `http://localhost:5000/api/admin/communities/${id}`,
+       `${API}/admin/communities/${id}`,
         config
       );
 
@@ -337,7 +338,7 @@ function AdminDashboard() {
       }
 
       const response = await axios.delete(
-        `http://localhost:5000/api/admin/events/${id}`,
+        `${API}/admin/events/${id}`,
         config
       );
 
@@ -376,7 +377,7 @@ function AdminDashboard() {
       }
 
       const response = await axios.delete(
-        `http://localhost:5000/api/admin/posts/${id}`,
+       `${API}/admin/posts/${id}`,
         config
       );
 

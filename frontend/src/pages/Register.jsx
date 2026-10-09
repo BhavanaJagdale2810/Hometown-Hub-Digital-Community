@@ -24,7 +24,7 @@ function Register() {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/users/",
+        `${API}/users/`,
         {
           id: Date.now(),
           name: name,

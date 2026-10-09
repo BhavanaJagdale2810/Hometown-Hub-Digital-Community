@@ -1,4 +1,5 @@
 import axios from "axios";
+import API from "../api";
 import { useEffect, useState } from "react";
 
 function Communities() {
@@ -37,7 +38,7 @@ function Communities() {
   const fetchCommunities = async () => {
     try {
       const response = await axios.get(
-        "http://localhost:5000/api/communities"
+       `${API}/communities`
       );
 
       if (response.data.success) {
@@ -61,10 +62,10 @@ function Communities() {
       }
 
       const response = await axios.get(
-        `http://localhost:5000/api/notifications/${encodeURIComponent(
-          currentUserName
-        )}`
-      );
+  `${API}/notifications/${encodeURIComponent(
+    currentUserName
+  )}`
+);
 
       if (response.data.success) {
         setNotifications(
@@ -98,11 +99,11 @@ function Communities() {
       const config = getAuthConfig();
 
       if (editingId) {
-        const response = await axios.put(
-          `http://localhost:5000/api/communities/${editingId}`,
-          formData,
-          config
-        );
+       const response = await axios.put(
+  `${API}/communities/${editingId}`,
+  formData,
+  config
+);
 
         if (response.data.success) {
           alert("Community Updated Successfully ✏️");
@@ -118,13 +119,13 @@ function Communities() {
         }
       } else {
         const response = await axios.post(
-          "http://localhost:5000/api/communities",
-          {
-            ...formData,
-            createdBy: currentUserName,
-          },
-          config
-        );
+  `${API}/communities`,
+  {
+    ...formData,
+    createdBy: currentUserName,
+  },
+  config
+);
 
         if (response.data.success) {
           alert("Community Created Successfully 🎉");
@@ -188,7 +189,7 @@ function Communities() {
 
     try {
       const response = await axios.delete(
-        `http://localhost:5000/api/communities/${id}`,
+       `${API}/communities/${id}`,
         getAuthConfig()
       );
 
@@ -224,7 +225,7 @@ function Communities() {
       }
 
       const response = await axios.post(
-        `http://localhost:5000/api/communities/${id}/join`,
+        `${API}/communities/${id}/join`,
         {
           userName: currentUserName,
         },
@@ -265,7 +266,7 @@ function Communities() {
   const markNotificationRead = async (id) => {
     try {
       await axios.put(
-        `http://localhost:5000/api/notifications/${id}/read`,
+        `${API}/notifications/${id}/read`,
         {},
         getAuthConfig()
       );

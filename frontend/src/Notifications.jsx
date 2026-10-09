@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 
-const API = "http://localhost:5000/api";
+import API from "./api";
 
 const Notifications = () => {
   const [notifications, setNotifications] = useState([]);

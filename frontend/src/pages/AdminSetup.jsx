@@ -1,5 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
+import API from "../api";
 
 function AdminSetup() {
   const [formData, setFormData] = useState({
@@ -22,7 +23,7 @@ function AdminSetup() {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/admin/create",
+       `${API}/admin/create`,
         formData
       );
 
