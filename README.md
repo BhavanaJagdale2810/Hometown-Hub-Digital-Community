@@ -151,4 +151,3 @@ Vite will display the local development URL in the terminal.
 
 This project was developed for internship and learning purposes. Add a formal license if you intend to distribute the project under specific reuse terms.
 
-This project was developed for internship and learning purposes. Add a formal license if you intend to distribute the project under specific reuse terms.
