@@ -1,16 +1,93 @@
-# React + Vite
+# Hometown Hub – Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The frontend of **Hometown Hub – Digital Community Platform**, a full-stack web application that helps people connect with their hometown communities, share posts, explore events, and interact with other users.
 
-Currently, two official plugins are available:
+## 🌐 Live Website
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+https://hometown-hub-digital-community.vercel.app/
 
-## React Compiler
+## ✨ Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- User registration and login
+- User dashboard and profile management
+- Create, edit, and delete community posts
+- Like and comment on posts
+- Search community content
+- Explore and participate in communities
+- View and join events
+- Notifications
+- Admin login and dashboard
+- Responsive user interface
 
-## Expanding the ESLint configuration
+## 🛠️ Technology Stack
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- React.js
+- Vite
+- JavaScript
+- HTML5
+- CSS3
+- Axios for API requests
+
+## 📁 Folder Structure
+
+```text
+frontend/
+├── public/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   └── ...
+├── index.html
+├── package.json
+├── vite.config.js
+└── vercel.json
+```
+
+*Note: The structure above is representative. Refer to the actual source folders for the complete structure.*
+
+## ⚙️ Run Locally
+
+### Prerequisites
+
+- Node.js
+- npm
+
+### 1. Install Dependencies
+
+Run these commands from the `frontend` directory:
+
+```bash
+npm install
+```
+
+### 2. Start Development Server
+
+```bash
+npm run dev
+```
+
+Vite will show the local development URL in the terminal.
+
+### 3. Build for Production
+
+```bash
+npm run build
+```
+
+## 🚀 Deployment
+
+The frontend is deployed on Vercel.
+
+**Live URL:** https://hometown-hub-digital-community.vercel.app/
+
+## 🔗 Main Repository
+
+https://github.com/BhavanaJagdale2810/Hometown-Hub-Digital-Community
+
+## 👩‍💻 Project Information
+
+**Project Name:** Hometown Hub – Digital Community Platform  
+**Project Type:** Full-Stack Web Development  
+**Purpose:** Community engagement and local connectivity
+
+Developed as an internship and learning project.
